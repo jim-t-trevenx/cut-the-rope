@@ -50,6 +50,7 @@ export default function App() {
       )}
       {currentScreen === 'game' && (
         <GameScreen
+          key={selectedLevel}
           levelId={selectedLevel}
           onBack={handleBackToMenu}
           onNextLevel={handleNextLevel}
