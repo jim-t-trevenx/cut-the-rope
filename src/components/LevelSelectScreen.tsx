@@ -29,8 +29,10 @@ export const LevelSelectScreen: React.FC<LevelSelectScreenProps> = ({
   };
 
   const isLevelUnlocked = (levelId: number): boolean => {
-    if (levelId === 1) return true;
-    return !!progress[levelId];
+    // TODO: Remove this - unlocking all levels for testing
+    return true;
+    // if (levelId === 1) return true;
+    // return !!progress[levelId];
   };
 
   const getLevelStars = (levelId: number): number => {
