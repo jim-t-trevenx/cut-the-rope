@@ -11,6 +11,7 @@ type Screen = 'levelSelect' | 'game' | 'settings';
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('levelSelect');
   const [selectedLevel, setSelectedLevel] = useState(1);
+  const [menuKey, setMenuKey] = useState(0);
 
   const handleSelectLevel = useCallback((levelId: number) => {
     setSelectedLevel(levelId);
@@ -18,6 +19,7 @@ export default function App() {
   }, []);
 
   const handleBackToMenu = useCallback(() => {
+    setMenuKey(prev => prev + 1); // Force LevelSelectScreen to remount and reload progress
     setCurrentScreen('levelSelect');
   }, []);
 
@@ -44,6 +46,7 @@ export default function App() {
       <StatusBar style="light" />
       {currentScreen === 'levelSelect' && (
         <LevelSelectScreen
+          key={menuKey}
           onSelectLevel={handleSelectLevel}
           onOpenSettings={handleOpenSettings}
         />
