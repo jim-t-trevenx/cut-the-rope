@@ -121,13 +121,14 @@ export const AirCushionMechanics = (
         const dy = candyPos.y - cushion.position.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // Air cushion has effect within 200 pixels
-        if (dist < 200) {
-          // Apply strong force in cushion direction (no direction check - always blows)
-          const forceMagnitude = 0.003 * (1 - dist / 200);
-          Matter.Body.applyForce(candyBody, candyPos, {
-            x: cushion.direction.x * forceMagnitude,
-            y: cushion.direction.y * forceMagnitude,
+        // Air cushion has effect within 250 pixels
+        if (dist < 250) {
+          // Add velocity directly for strong, noticeable wind effect
+          const strength = 0.5 * (1 - dist / 250);
+          const currentVel = candyBody.velocity;
+          Matter.Body.setVelocity(candyBody, {
+            x: currentVel.x + cushion.direction.x * strength,
+            y: currentVel.y + cushion.direction.y * strength,
           });
         }
       }
