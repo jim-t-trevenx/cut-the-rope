@@ -116,23 +116,19 @@ export const AirCushionMechanics = (
     if (key.startsWith('airCushion')) {
       const cushion = entities[key] as AirCushion;
       if (cushion && cushion.active) {
-        // Check if candy is in front of air cushion (within range)
+        // Check if candy is within range of air cushion
         const dx = candyPos.x - cushion.position.x;
         const dy = candyPos.y - cushion.position.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // Air cushion has effect within 150 pixels
-        if (dist < 150) {
-          // Check if candy is in the direction of the cushion
-          const dotProduct = dx * cushion.direction.x + dy * cushion.direction.y;
-          if (dotProduct > 0) {
-            // Apply force in cushion direction
-            const forceMagnitude = 0.0005 * (1 - dist / 150);
-            Matter.Body.applyForce(candyBody, candyPos, {
-              x: cushion.direction.x * forceMagnitude,
-              y: cushion.direction.y * forceMagnitude,
-            });
-          }
+        // Air cushion has effect within 200 pixels
+        if (dist < 200) {
+          // Apply strong force in cushion direction (no direction check - always blows)
+          const forceMagnitude = 0.003 * (1 - dist / 200);
+          Matter.Body.applyForce(candyBody, candyPos, {
+            x: cushion.direction.x * forceMagnitude,
+            y: cushion.direction.y * forceMagnitude,
+          });
         }
       }
     }
