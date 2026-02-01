@@ -216,6 +216,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ levelId, onBack, onNextL
         Matter.World.remove(world, rope.constraint);
         delete ents[ropeKey];
         setRenderTick(n => n + 1);
+
+        // Only cut one rope per touch
+        break;
       }
     }
   };
