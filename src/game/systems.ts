@@ -123,8 +123,8 @@ export const AirCushionMechanics = (
 
         // Air cushion has effect within 300 pixels
         if (dist < 300) {
-          // Max wind - directly set velocity in wind direction
-          const strength = 3 * (1 - dist / 300);
+          // Strong wind - set velocity in wind direction
+          const strength = 1.5 * (1 - dist / 300);
           Matter.Body.setVelocity(candyBody, {
             x: cushion.direction.x * strength * 3,
             y: cushion.direction.y * strength * 3,
