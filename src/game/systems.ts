@@ -78,15 +78,26 @@ export const BubbleMechanics = (
       if (bubble && bubble.active) {
         const dist = distance(candyPos, bubble.position);
 
-        // Candy enters bubble
-        if (dist < bubble.radius - candy.radius) {
+        // Candy touches or enters bubble (more generous detection)
+        if (dist < bubble.radius + candy.radius * 0.5) {
           if (!bubble.capturedCandy) {
             bubble.capturedCandy = true;
-            // Make candy float up
-            Matter.Body.setVelocity(candyBody, { x: candyBody.velocity.x * 0.5, y: -2 });
+            // Stop horizontal movement and start floating
+            Matter.Body.setVelocity(candyBody, { x: 0, y: -1 });
           }
-          // Apply upward force while in bubble
-          Matter.Body.applyForce(candyBody, candyPos, { x: 0, y: -0.0003 });
+
+          // Move bubble with candy
+          bubble.position.x = candyPos.x;
+          bubble.position.y = candyPos.y;
+
+          // Apply strong upward force to overcome gravity
+          Matter.Body.applyForce(candyBody, candyPos, { x: 0, y: -0.002 });
+
+          // Dampen velocity for smooth floating
+          Matter.Body.setVelocity(candyBody, {
+            x: candyBody.velocity.x * 0.95,
+            y: Math.max(candyBody.velocity.y, -3) // Cap upward speed
+          });
         } else if (bubble.capturedCandy) {
           // Candy left bubble
           bubble.capturedCandy = false;

@@ -74,20 +74,20 @@ export const levels: LevelData[] = [
     id: 4,
     name: 'Bubble Trouble',
     anchors: [
-      { id: 'anchor1', x: SCREEN_WIDTH / 2, y: 120 },
+      { id: 'anchor1', x: SCREEN_WIDTH / 2, y: 150 },
     ],
     ropes: [
       { anchorId: 'anchor1' },
     ],
-    candyStart: { x: SCREEN_WIDTH / 2, y: 220 },
-    monsterPosition: { x: SCREEN_WIDTH / 2, y: 100 },
+    candyStart: { x: SCREEN_WIDTH / 2, y: 250 },
+    monsterPosition: { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT - 150 },
     stars: [
       { x: SCREEN_WIDTH / 2 - 60, y: 350 },
       { x: SCREEN_WIDTH / 2 + 60, y: 350 },
-      { x: SCREEN_WIDTH / 2, y: 250 },
+      { x: SCREEN_WIDTH / 2, y: 450 },
     ],
     bubbles: [
-      { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT - 300, radius: 50 },
+      { x: SCREEN_WIDTH / 2, y: 450, radius: 50 },
     ],
   },
 
