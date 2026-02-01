@@ -70,11 +70,40 @@ export const CandyRenderer: React.FC<CandyProps> = ({ body, radius }) => {
 interface MonsterProps {
   position: { x: number; y: number };
   radius: number;
+  entities?: any;
+  gameStatus?: 'playing' | 'won' | 'lost';
 }
 
-export const MonsterRenderer: React.FC<MonsterProps> = ({ position, radius }) => {
+export const MonsterRenderer: React.FC<MonsterProps> = ({ position, radius, entities, gameStatus }) => {
   const x = position.x - radius;
   const y = position.y - radius;
+
+  // Calculate eye direction towards candy
+  let leftPupilOffset = { x: 0, y: 2 };
+  let rightPupilOffset = { x: 0, y: 2 };
+
+  if (entities?.candy?.body) {
+    const candyPos = entities.candy.body.position;
+    const dx = candyPos.x - position.x;
+    const dy = candyPos.y - position.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > 0) {
+      const maxOffset = 4;
+      leftPupilOffset = {
+        x: Math.max(-maxOffset, Math.min(maxOffset, (dx / dist) * maxOffset - 5)),
+        y: Math.max(-maxOffset, Math.min(maxOffset, (dy / dist) * maxOffset)),
+      };
+      rightPupilOffset = {
+        x: Math.max(-maxOffset, Math.min(maxOffset, (dx / dist) * maxOffset + 5)),
+        y: Math.max(-maxOffset, Math.min(maxOffset, (dy / dist) * maxOffset)),
+      };
+    }
+  }
+
+  // Expression based on game status
+  const isHappy = gameStatus === 'won';
+  const isSad = gameStatus === 'lost';
 
   return (
     <View
@@ -89,7 +118,7 @@ export const MonsterRenderer: React.FC<MonsterProps> = ({ position, radius }) =>
       ]}
     >
       {/* Left arm */}
-      <View style={[styles.arm, styles.armLeft]} />
+      <View style={[styles.arm, styles.armLeft, isHappy && styles.armRaised]} />
 
       {/* Main body */}
       <View
@@ -107,18 +136,26 @@ export const MonsterRenderer: React.FC<MonsterProps> = ({ position, radius }) =>
 
         {/* Eyes */}
         <View style={styles.eyeContainer}>
-          <View style={styles.eye}>
-            <View style={styles.pupil} />
-            <View style={styles.eyeShine} />
+          <View style={[styles.eye, isHappy && styles.eyeHappy]}>
+            {!isHappy && (
+              <>
+                <View style={[styles.pupil, { marginLeft: leftPupilOffset.x, marginTop: leftPupilOffset.y }]} />
+                <View style={styles.eyeShine} />
+              </>
+            )}
           </View>
-          <View style={styles.eye}>
-            <View style={styles.pupil} />
-            <View style={styles.eyeShine} />
+          <View style={[styles.eye, isHappy && styles.eyeHappy]}>
+            {!isHappy && (
+              <>
+                <View style={[styles.pupil, { marginLeft: rightPupilOffset.x, marginTop: rightPupilOffset.y }]} />
+                <View style={styles.eyeShine} />
+              </>
+            )}
           </View>
         </View>
 
         {/* Mouth with teeth */}
-        <View style={styles.mouth}>
+        <View style={[styles.mouth, isHappy && styles.mouthHappy, isSad && styles.mouthSad]}>
           {/* Teeth */}
           <View style={styles.teethRow}>
             <View style={styles.tooth} />
@@ -132,7 +169,7 @@ export const MonsterRenderer: React.FC<MonsterProps> = ({ position, radius }) =>
       </View>
 
       {/* Right arm */}
-      <View style={[styles.arm, styles.armRight]} />
+      <View style={[styles.arm, styles.armRight, isHappy && styles.armRaised]} />
     </View>
   );
 };
@@ -379,6 +416,317 @@ export const CutSparkRenderer: React.FC<CutSparkProps> = ({
         );
       })}
     </View>
+  );
+};
+
+// Star collectible
+interface StarProps {
+  position: { x: number; y: number };
+  radius: number;
+  collected: boolean;
+}
+
+export const StarRenderer: React.FC<StarProps> = ({ position, radius, collected }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+  const rotation = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Gentle floating animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(rotation, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(rotation, {
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  useEffect(() => {
+    if (collected) {
+      Animated.parallel([
+        Animated.timing(scale, {
+          toValue: 2,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [collected]);
+
+  if (collected) return null;
+
+  const spin = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '15deg'],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.starContainer,
+        {
+          left: position.x - radius,
+          top: position.y - radius,
+          width: radius * 2,
+          height: radius * 2,
+          opacity,
+          transform: [{ scale }, { rotate: spin }],
+        },
+      ]}
+    >
+      {/* Star shape using rotated squares */}
+      <View style={styles.starInner}>
+        <View style={[styles.starPoint, { transform: [{ rotate: '0deg' }] }]} />
+        <View style={[styles.starPoint, { transform: [{ rotate: '72deg' }] }]} />
+        <View style={[styles.starPoint, { transform: [{ rotate: '144deg' }] }]} />
+        <View style={[styles.starPoint, { transform: [{ rotate: '216deg' }] }]} />
+        <View style={[styles.starPoint, { transform: [{ rotate: '288deg' }] }]} />
+        <View style={styles.starCenter} />
+      </View>
+    </Animated.View>
+  );
+};
+
+// Bubble that makes candy float
+interface BubbleProps {
+  position: { x: number; y: number };
+  radius: number;
+  active: boolean;
+  capturedCandy: boolean;
+}
+
+export const BubbleRenderer: React.FC<BubbleProps> = ({ position, radius, active, capturedCandy }) => {
+  const wobble = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (active) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(wobble, {
+            toValue: 1,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(wobble, {
+            toValue: 0,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [active]);
+
+  if (!active) return null;
+
+  const scaleX = wobble.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.05],
+  });
+  const scaleY = wobble.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1.05, 1],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.bubble,
+        {
+          left: position.x - radius,
+          top: position.y - radius,
+          width: radius * 2,
+          height: radius * 2,
+          borderRadius: radius,
+          transform: [{ scaleX }, { scaleY }],
+        },
+      ]}
+    >
+      <View style={styles.bubbleShine} />
+      <View style={styles.bubbleShine2} />
+    </Animated.View>
+  );
+};
+
+// Air cushion that blows candy
+interface AirCushionProps {
+  position: { x: number; y: number };
+  direction: { x: number; y: number };
+  active: boolean;
+}
+
+export const AirCushionRenderer: React.FC<AirCushionProps> = ({ position, direction, active }) => {
+  const blow = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (active) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(blow, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(blow, {
+            toValue: 0,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [active]);
+
+  const angle = Math.atan2(direction.y, direction.x) * (180 / Math.PI);
+  const airOpacity = blow.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  return (
+    <View
+      style={[
+        styles.airCushion,
+        {
+          left: position.x - 25,
+          top: position.y - 15,
+        },
+      ]}
+    >
+      <View style={styles.airCushionBase}>
+        <View style={styles.airCushionGrill} />
+        <View style={styles.airCushionGrill} />
+        <View style={styles.airCushionGrill} />
+      </View>
+      {active && (
+        <Animated.View
+          style={[
+            styles.airStream,
+            {
+              opacity: airOpacity,
+              transform: [{ rotate: `${angle}deg` }],
+            },
+          ]}
+        >
+          <View style={styles.airLine} />
+          <View style={[styles.airLine, { width: 25 }]} />
+          <View style={styles.airLine} />
+        </Animated.View>
+      )}
+    </View>
+  );
+};
+
+// Spike hazard
+interface SpikeProps {
+  position: { x: number; y: number };
+  width: number;
+  height: number;
+}
+
+export const SpikeRenderer: React.FC<SpikeProps> = ({ position, width, height }) => {
+  const numSpikes = Math.floor(width / 15);
+
+  return (
+    <View
+      style={[
+        styles.spikeContainer,
+        {
+          left: position.x,
+          top: position.y,
+          width,
+          height,
+        },
+      ]}
+    >
+      {Array.from({ length: numSpikes }).map((_, i) => (
+        <View key={i} style={styles.spike}>
+          <View style={styles.spikePoint} />
+        </View>
+      ))}
+    </View>
+  );
+};
+
+// Star collection animation
+interface StarCollectAnimationProps {
+  startPosition: { x: number; y: number };
+  endPosition: { x: number; y: number };
+  onComplete?: () => void;
+}
+
+export const StarCollectAnimation: React.FC<StarCollectAnimationProps> = ({
+  startPosition,
+  endPosition,
+  onComplete,
+}) => {
+  const progress = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.timing(scale, {
+          toValue: 1.5,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scale, {
+          toValue: 0.5,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start(() => {
+      onComplete?.();
+    });
+  }, []);
+
+  const translateX = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [startPosition.x, endPosition.x],
+  });
+  const translateY = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [startPosition.y, endPosition.y],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.starCollectAnim,
+        {
+          transform: [{ translateX }, { translateY }, { scale }],
+        },
+      ]}
+    >
+      <View style={styles.starInner}>
+        <View style={[styles.starPoint, { transform: [{ rotate: '0deg' }] }]} />
+        <View style={[styles.starPoint, { transform: [{ rotate: '72deg' }] }]} />
+        <View style={[styles.starPoint, { transform: [{ rotate: '144deg' }] }]} />
+        <View style={[styles.starPoint, { transform: [{ rotate: '216deg' }] }]} />
+        <View style={[styles.starPoint, { transform: [{ rotate: '288deg' }] }]} />
+        <View style={styles.starCenter} />
+      </View>
+    </Animated.View>
   );
 };
 
@@ -688,5 +1036,137 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFD700',
     marginLeft: -3,
     marginTop: -3,
+  },
+  // Monster expressions
+  armRaised: {
+    transform: [{ rotate: '-45deg' }],
+  },
+  eyeHappy: {
+    height: 8,
+    borderRadius: 4,
+  },
+  mouthHappy: {
+    height: 25,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  mouthSad: {
+    transform: [{ rotate: '180deg' }],
+    marginTop: 10,
+  },
+  // Star styles
+  starContainer: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  starInner: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  starPoint: {
+    position: 'absolute',
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 20,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#FFD700',
+    top: -5,
+  },
+  starCenter: {
+    position: 'absolute',
+    width: 16,
+    height: 16,
+    backgroundColor: '#FFD700',
+    borderRadius: 8,
+  },
+  starCollectAnim: {
+    position: 'absolute',
+    width: 30,
+    height: 30,
+  },
+  // Bubble styles
+  bubble: {
+    position: 'absolute',
+    backgroundColor: 'rgba(173, 216, 230, 0.4)',
+    borderWidth: 2,
+    borderColor: 'rgba(135, 206, 235, 0.6)',
+  },
+  bubbleShine: {
+    position: 'absolute',
+    top: '15%',
+    left: '15%',
+    width: '25%',
+    height: '25%',
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderRadius: 100,
+  },
+  bubbleShine2: {
+    position: 'absolute',
+    top: '25%',
+    left: '35%',
+    width: '10%',
+    height: '10%',
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 100,
+  },
+  // Air cushion styles
+  airCushion: {
+    position: 'absolute',
+    alignItems: 'center',
+  },
+  airCushionBase: {
+    width: 50,
+    height: 30,
+    backgroundColor: '#607D8B',
+    borderRadius: 5,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#455A64',
+  },
+  airCushionGrill: {
+    width: 8,
+    height: 20,
+    backgroundColor: '#37474F',
+    borderRadius: 2,
+  },
+  airStream: {
+    position: 'absolute',
+    top: -30,
+    flexDirection: 'row',
+    gap: 3,
+  },
+  airLine: {
+    width: 20,
+    height: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderRadius: 2,
+  },
+  // Spike styles
+  spikeContainer: {
+    position: 'absolute',
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'flex-end',
+  },
+  spike: {
+    alignItems: 'center',
+  },
+  spikePoint: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderBottomWidth: 20,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#37474F',
   },
 });

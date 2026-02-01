@@ -1,12 +1,13 @@
 import Matter from 'matter-js';
 import { Dimensions } from 'react-native';
-import { CandyRenderer, MonsterRenderer, AnchorRenderer, RopeRenderer, CutRopeSegmentRenderer, CutSparkRenderer } from './renderer';
+import { CandyRenderer, MonsterRenderer, AnchorRenderer, RopeRenderer, CutRopeSegmentRenderer, CutSparkRenderer, StarRenderer, BubbleRenderer, AirCushionRenderer, SpikeRenderer } from './renderer';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export const CANDY_RADIUS = 25;
 export const MONSTER_RADIUS = 40;
 export const ANCHOR_RADIUS = 8;
+export const STAR_RADIUS = 15;
 
 export interface Anchor {
   id: string;
@@ -47,6 +48,52 @@ export interface CutSpark {
   position: { x: number; y: number };
   createdAt: number;
   renderer: typeof CutSparkRenderer;
+}
+
+export interface Star {
+  id: string;
+  position: { x: number; y: number };
+  radius: number;
+  collected: boolean;
+  renderer: typeof StarRenderer;
+}
+
+export interface Bubble {
+  id: string;
+  position: { x: number; y: number };
+  radius: number;
+  active: boolean;
+  capturedCandy: boolean;
+  renderer: typeof BubbleRenderer;
+}
+
+export interface AirCushion {
+  id: string;
+  position: { x: number; y: number };
+  direction: { x: number; y: number };
+  active: boolean;
+  renderer: typeof AirCushionRenderer;
+}
+
+export interface Spike {
+  id: string;
+  position: { x: number; y: number };
+  width: number;
+  height: number;
+  renderer: typeof SpikeRenderer;
+}
+
+export interface LevelData {
+  id: number;
+  name: string;
+  anchors: { id: string; x: number; y: number }[];
+  ropes: { anchorId: string }[];
+  candyStart: { x: number; y: number };
+  monsterPosition: { x: number; y: number };
+  stars: { x: number; y: number }[];
+  bubbles?: { x: number; y: number; radius: number }[];
+  airCushions?: { x: number; y: number; dirX: number; dirY: number }[];
+  spikes?: { x: number; y: number; width: number; height: number }[];
 }
 
 export interface GameEntities {
@@ -152,6 +199,31 @@ export function createEntities(engine: Matter.Engine): GameEntities {
     renderer: CandyRenderer,
   };
 
+  // Create stars
+  const star1: Star = {
+    id: 'star1',
+    position: { x: SCREEN_WIDTH / 2 - 80, y: 350 },
+    radius: STAR_RADIUS,
+    collected: false,
+    renderer: StarRenderer,
+  };
+
+  const star2: Star = {
+    id: 'star2',
+    position: { x: SCREEN_WIDTH / 2, y: 450 },
+    radius: STAR_RADIUS,
+    collected: false,
+    renderer: StarRenderer,
+  };
+
+  const star3: Star = {
+    id: 'star3',
+    position: { x: SCREEN_WIDTH / 2 + 80, y: 350 },
+    radius: STAR_RADIUS,
+    collected: false,
+    renderer: StarRenderer,
+  };
+
   return {
     physics: { engine, world },
     candy,
@@ -160,5 +232,134 @@ export function createEntities(engine: Matter.Engine): GameEntities {
     anchor2,
     rope1,
     rope2,
+    star1,
+    star2,
+    star3,
   };
+}
+
+// Create entities from level data
+export function createEntitiesFromLevel(engine: Matter.Engine, level: LevelData): GameEntities {
+  const world = engine.world;
+
+  const entities: GameEntities = {
+    physics: { engine, world },
+    candy: null as any,
+    monster: null as any,
+  };
+
+  // Create candy body
+  const candyBody = Matter.Bodies.circle(
+    level.candyStart.x,
+    level.candyStart.y,
+    CANDY_RADIUS,
+    {
+      restitution: 0.4,
+      friction: 0.1,
+      frictionAir: 0.005,
+      density: 0.001,
+      label: 'candy',
+    }
+  );
+  Matter.World.add(world, candyBody);
+
+  entities.candy = {
+    body: candyBody,
+    radius: CANDY_RADIUS,
+    renderer: CandyRenderer,
+  };
+
+  // Create anchors and ropes
+  level.anchors.forEach((anchorData, index) => {
+    const anchor: Anchor = {
+      id: anchorData.id,
+      position: { x: anchorData.x, y: anchorData.y },
+      renderer: AnchorRenderer,
+    };
+    entities[anchorData.id] = anchor;
+  });
+
+  level.ropes.forEach((ropeData, index) => {
+    const anchor = entities[ropeData.anchorId] as Anchor;
+    const ropeLength = Math.sqrt(
+      Math.pow(level.candyStart.x - anchor.position.x, 2) +
+      Math.pow(level.candyStart.y - anchor.position.y, 2)
+    );
+
+    const constraint = Matter.Constraint.create({
+      pointA: { x: anchor.position.x, y: anchor.position.y },
+      bodyB: candyBody,
+      stiffness: 0.9,
+      damping: 0.05,
+      length: ropeLength,
+      label: `rope${index + 1}`,
+    });
+    Matter.World.add(world, constraint);
+
+    const rope: Rope = {
+      id: `rope${index + 1}`,
+      constraint,
+      anchorId: ropeData.anchorId,
+      renderer: RopeRenderer,
+    };
+    entities[`rope${index + 1}`] = rope;
+  });
+
+  // Create monster
+  entities.monster = {
+    position: { x: level.monsterPosition.x, y: level.monsterPosition.y },
+    radius: MONSTER_RADIUS,
+    renderer: MonsterRenderer,
+  };
+
+  // Create stars
+  level.stars.forEach((starData, index) => {
+    const star: Star = {
+      id: `star${index + 1}`,
+      position: { x: starData.x, y: starData.y },
+      radius: STAR_RADIUS,
+      collected: false,
+      renderer: StarRenderer,
+    };
+    entities[`star${index + 1}`] = star;
+  });
+
+  // Create bubbles
+  level.bubbles?.forEach((bubbleData, index) => {
+    const bubble: Bubble = {
+      id: `bubble${index + 1}`,
+      position: { x: bubbleData.x, y: bubbleData.y },
+      radius: bubbleData.radius || 40,
+      active: true,
+      capturedCandy: false,
+      renderer: BubbleRenderer,
+    };
+    entities[`bubble${index + 1}`] = bubble;
+  });
+
+  // Create air cushions
+  level.airCushions?.forEach((cushionData, index) => {
+    const cushion: AirCushion = {
+      id: `airCushion${index + 1}`,
+      position: { x: cushionData.x, y: cushionData.y },
+      direction: { x: cushionData.dirX, y: cushionData.dirY },
+      active: true,
+      renderer: AirCushionRenderer,
+    };
+    entities[`airCushion${index + 1}`] = cushion;
+  });
+
+  // Create spikes
+  level.spikes?.forEach((spikeData, index) => {
+    const spike: Spike = {
+      id: `spike${index + 1}`,
+      position: { x: spikeData.x, y: spikeData.y },
+      width: spikeData.width,
+      height: spikeData.height,
+      renderer: SpikeRenderer,
+    };
+    entities[`spike${index + 1}`] = spike;
+  });
+
+  return entities;
 }
